@@ -728,7 +728,7 @@ export default function OnboardPropertyPage() {
           {/* Step 5: Legal Compliance */}
           {step === 5 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-semibold mb-4">Legal Compliance Verification</h2>
+              <h2 className="text-2xl font-semibold mb-4">Legal Compliance & Ownership</h2>
               
               <div className="space-y-4">
                 <div className="flex items-start space-x-3">
@@ -740,7 +740,7 @@ export default function OnboardPropertyPage() {
                     className="mt-1 w-5 h-5 text-red-600 bg-gray-800 border-gray-700 rounded focus:ring-red-500"
                   />
                   <label htmlFor="ownership" className="text-gray-300">
-                    <span className="font-semibold">Ownership Verification *</span>
+                    <span className="font-semibold">Ownership Confirmation *</span>
                     <p className="text-sm text-gray-400 mt-1">
                       I confirm that I am the legal owner of this property and have the right to tokenize it for investment purposes.
                     </p>
@@ -787,7 +787,7 @@ export default function OnboardPropertyPage() {
                     <h4 className="font-semibold mb-2">Legal Notice</h4>
                     <p className="text-sm">
                       By submitting this property, you acknowledge that tokenized real estate investments are subject to securities regulations. 
-                      Our legal team will review your submission and may require additional documentation or modifications to ensure compliance.
+                      Your property will be listed directly on the blockchain for investors to purchase tokens.
                     </p>
                   </div>
                 </div>
@@ -795,10 +795,10 @@ export default function OnboardPropertyPage() {
             </div>
           )}
 
-          {/* Step 6: Review and Submit */}
+          {/* Step 6: List Property */}
           {step === 6 && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-semibold mb-4">Review Your Submission</h2>
+              <h2 className="text-2xl font-semibold mb-4">List Your Property</h2>
               
               <div className="bg-gray-800 rounded-lg p-6 space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -814,11 +814,11 @@ export default function OnboardPropertyPage() {
               <div className="bg-blue-900/20 border border-blue-500/20 rounded-lg p-4">
                 <h4 className="font-semibold mb-2 text-blue-100">Next Steps</h4>
                 <ul className="text-sm text-blue-100 space-y-1">
-                  <li>• Legal team review (2-3 business days)</li>
-                  <li>• Property valuation verification</li>
-                  <li>• Smart contract deployment</li>
-                  <li>• Marketing and investor outreach</li>
-                  <li>• Token sale launch</li>
+                  <li>• Property listed immediately on blockchain</li>
+                  <li>• Investors can purchase tokens immediately</li>
+                  <li>• Property metadata stored on IPFS</li>
+                  <li>• Fractional ownership begins</li>
+                  <li>• Revenue sharing starts</li>
                 </ul>
               </div>
 
@@ -828,7 +828,7 @@ export default function OnboardPropertyPage() {
                   disabled={submitting}
                   className="bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white px-8 py-4 rounded-lg font-semibold text-lg"
                 >
-                  {submitting ? 'Submitting...' : 'Submit Property for Review'}
+                  {submitting ? 'Listing Property...' : 'List Property for Sale'}
                 </button>
               </div>
             </div>
