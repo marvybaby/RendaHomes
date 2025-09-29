@@ -49,10 +49,12 @@ class IPFSService {
   private client: IPFSHTTPClient | null = null;
   private readonly IPFS_GATEWAYS = [
     'https://ipfs.io/ipfs/',
-    'https://gateway.pinata.cloud/ipfs/',
     'https://cloudflare-ipfs.com/ipfs/',
-    'https://dweb.link/ipfs/'
+    'https://dweb.link/ipfs/',
+    'https://gateway.pinata.cloud/ipfs/'
   ];
+  private cache = new Map<string, any>();
+  private requestQueue = new Map<string, Promise<any>>();
 
   constructor() {
     this.initializeClient();
@@ -191,14 +193,50 @@ class IPFSService {
   }
 
   async fetchFromIPFS(uri: string): Promise<any> {
+    if (!uri || uri.length < 10) {
+      throw new Error('Invalid IPFS URI');
+    }
+
     const cid = uri.replace('ipfs://', '');
 
+    // Check cache first
+    if (this.cache.has(cid)) {
+      return this.cache.get(cid);
+    }
+
+    // Check if request is already in progress
+    if (this.requestQueue.has(cid)) {
+      return this.requestQueue.get(cid);
+    }
+
+    // Create new request
+    const requestPromise = this.performIPFSFetch(cid);
+    this.requestQueue.set(cid, requestPromise);
+
+    try {
+      const result = await requestPromise;
+      this.cache.set(cid, result);
+      return result;
+    } finally {
+      this.requestQueue.delete(cid);
+    }
+  }
+
+  private async performIPFSFetch(cid: string): Promise<any> {
     // Try multiple gateways for reliability
     for (const gateway of this.IPFS_GATEWAYS) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
         const response = await fetch(`${gateway}${cid}`, {
-          timeout: 10000 // 10 seconds timeout
-        } as RequestInit);
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json, text/plain, */*'
+          }
+        });
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const contentType = response.headers.get('content-type');
@@ -206,10 +244,16 @@ class IPFSService {
           if (contentType && contentType.includes('application/json')) {
             return await response.json();
           } else {
-            return await response.text();
+            const text = await response.text();
+            try {
+              return JSON.parse(text);
+            } catch {
+              return text;
+            }
           }
         }
       } catch (error) {
+        // Continue to next gateway
         continue;
       }
     }
@@ -232,10 +276,11 @@ class IPFSService {
           return data;
         }
       } catch (error) {
+        // Client failed too
       }
     }
 
-    throw new Error(`Failed to fetch data from IPFS: ${uri}`);
+    throw new Error(`Failed to fetch data from IPFS: ${cid}`);
   }
 
   async pinToIPFS(cid: string): Promise<void> {

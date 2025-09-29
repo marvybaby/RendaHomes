@@ -18,6 +18,7 @@
     "hardhat:deploy-all": "npx hardhat run hardhat-scripts/deploy-all.js --network hedera_testnet",
     "populate-properties": "cross-env HEDERA_NETWORK=testnet node scripts/populate-properties.js",
     "populate-defaults": "cross-env HEDERA_NETWORK=testnet node scripts/populate-default-properties.js",
+    "populate-realistic": "cross-env HEDERA_NETWORK=testnet node scripts/populate-realistic-properties.js",
     "populate-governance": "cross-env HEDERA_NETWORK=testnet node scripts/populate-governance.js",
     "populate-disasters": "cross-env HEDERA_NETWORK=testnet node scripts/populate-disaster-management.js",
     "populate-all": "npm run populate-defaults && npm run populate-governance && npm run populate-disasters",

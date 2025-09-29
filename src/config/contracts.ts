@@ -73,10 +73,10 @@ export const CONTRACT_ABIS = {
   PropertyToken: [
     'function listProperty(string metadataURI, uint256 totalValue, uint256 totalTokens, uint8 propertyType, uint8 riskLevel) returns (uint256)',
     'function purchaseTokens(uint256 propertyId, uint256 tokens)',
-    'function getProperty(uint256 propertyId) view returns (tuple(uint256 id, string metadataURI, uint256 totalValue, uint256 totalTokens, uint256 availableTokens, uint256 tokenPrice, address propertyOwner, bool isActive, bool isVerified, uint256 createdAt, uint8 propertyType, uint8 riskLevel))',
+    'function getProperty(uint256 propertyId) view returns (uint256 id, string metadataURI, uint256 totalValue, uint256 totalTokens, uint256 availableTokens, uint256 tokenPrice, address propertyOwner, bool isActive, bool isVerified, uint256 createdAt, uint8 propertyType, uint8 riskLevel)',
     'function getInvestment(uint256 propertyId, address investor) view returns (tuple(address investor, uint256 tokensOwned, uint256 investmentAmount, uint256 purchaseDate))',
     'function getInvestorPortfolio(address investor) view returns (tuple(uint256[] propertyIds, uint256 totalInvestment, uint256 totalTokens))',
-    'function getPlatformStats() view returns (tuple(uint256 totalProperties, uint256 totalInvestors, uint256 totalValueLocked, uint256 totalTokens))',
+    'function getPlatformStats() view returns (uint256 totalProperties, uint256 activeProperties, uint256 totalValueLocked, uint256 totalTokensSold, uint256 totalInvestors)',
     'function verifyProperty(uint256 propertyId)',
     'function distributeRentalIncome(uint256 propertyId, uint256 totalIncome)',
     'function createSellOrder(uint256 propertyId, uint256 tokensForSale, uint256 pricePerToken, uint256 durationDays) returns (uint256)',

@@ -49,7 +49,7 @@ interface PropertySubmission {
 export default function OnboardPropertyPage() {
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
-  const { wallet, isConnected } = useWallet();
+  const { wallet, isConnected, sendContractTransaction } = useWallet();
   const { success, error, info, warning } = useAlert();
   
   const [formData, setFormData] = useState<PropertySubmission>({
@@ -212,34 +212,47 @@ export default function OnboardPropertyPage() {
       setSubmitting(true);
       info('Uploading', 'Uploading property metadata to IPFS...');
 
-      const metadataURI = await uploadToIPFS();
+      // Temporarily bypass IPFS upload for testing
+      const metadataURI = `https://gateway.pinata.cloud/ipfs/QmTestPropertyMetadata${Date.now()}`;
+      // const metadataURI = await uploadToIPFS();
 
       info('Creating Listing', 'Creating property listing on blockchain...');
-      // Use HashPack wallet to interact with blockchain
-      if (!sendContractTransaction) {
-        throw new Error('Wallet transaction function not available');
+
+      if (!wallet.isConnected || !wallet.address) {
+        throw new Error('Wallet not connected');
       }
 
-      // Get contract ID for property token
+      // Use HashPack wallet to send the transaction
       const { getCurrentNetworkConfig } = await import('@/config/contracts');
       const networkConfig = getCurrentNetworkConfig();
-      let contractId = networkConfig.contracts.propertyToken;
+      const contractAddress = networkConfig.contracts.propertyToken;
 
-      // Convert EVM address to Hedera format if needed
-      if (contractId.startsWith('0x')) {
-        // Use the HRM token contract for testing since we know it works
-        contractId = import.meta.env.VITE_HRM_TOKEN_HTS_TESTNET || '0.0.6878899'; // Fallback to a known contract
+      if (!contractAddress) {
+        throw new Error('Property token contract address not configured');
       }
+
+      // Get Hedera contract ID from environment
+      const contractId = import.meta.env.VITE_PROPERTY_TOKEN_HTS_TESTNET;
 
       // Prepare transaction data
       const propertyTypeIndex = getPropertyTypeIndex(formData.propertyType);
       const riskLevelIndex = getRiskLevelIndex();
 
-      // Convert value to smallest unit (wei equivalent)
-      const totalValueWei = (BigInt(Math.floor(formData.currentValue * 1e18))).toString();
+      // Convert value to smallest unit (wei equivalent) - same as population script
+      const { ethers } = await import('ethers');
+      const totalValueWei = ethers.parseEther(formData.currentValue.toString()).toString();
 
-      // Create function call for listing property
-      const functionCall = 'publicMint';
+      // Create function call for listing property with proper parameters
+      const functionCall = `listProperty("${metadataURI}",${totalValueWei},${formData.totalTokens},${propertyTypeIndex},${riskLevelIndex})`;
+
+      console.log('Contract call parameters:', {
+        metadataURI,
+        totalValueWei,
+        totalTokens: formData.totalTokens,
+        propertyTypeIndex,
+        riskLevelIndex,
+        functionCall
+      });
 
       // Send transaction through HashPack
       const txHash = await sendContractTransaction(contractId, functionCall);
@@ -284,7 +297,26 @@ export default function OnboardPropertyPage() {
       );
 
     } catch (err: any) {
-      error('Listing Failed', `Failed to list property: ${err.message || 'Unknown error'}`);
+      console.error('Property listing error:', err);
+      console.error('Error details:', {
+        message: err.message,
+        code: err.code,
+        reason: err.reason,
+        data: err.data,
+        stack: err.stack,
+        fullError: JSON.stringify(err, null, 2)
+      });
+
+      let errorMessage = 'Unknown error';
+      if (err.message) {
+        errorMessage = err.message;
+      } else if (err.reason) {
+        errorMessage = err.reason;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
+
+      error('Listing Failed', `Failed to list property: ${errorMessage}`);
     } finally {
       setSubmitting(false);
     }

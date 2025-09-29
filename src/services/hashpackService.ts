@@ -102,6 +102,11 @@ export class HashPackService {
         const functionName = functionData.substring(0, functionData.indexOf('('));
         const paramString = functionData.substring(functionData.indexOf('(') + 1, functionData.lastIndexOf(')'));
 
+        console.log('HashPack function parsing:', {
+          functionName,
+          paramString,
+          fullFunctionData: functionData
+        });
 
         if (paramString.trim()) {
           const functionParameters = new ContractFunctionParameters();
@@ -116,21 +121,53 @@ export class HashPackService {
               functionParameters.addUint256(params[1].trim() as any);
             }
           }
+          else if (functionName === 'listProperty') {
+            const params = paramString.split(',');
+            console.log('listProperty parameters:', {
+              paramsLength: params.length,
+              params: params.map((p, i) => ({ index: i, value: p.trim() }))
+            });
+
+            if (params.length === 5) {
+              // listProperty(string metadataURI, uint256 totalValue, uint256 totalTokens, uint8 propertyType, uint8 riskLevel)
+              const metadataURI = params[0].trim().replace(/"/g, '');
+              const totalValue = params[1].trim();
+              const totalTokens = params[2].trim();
+              const propertyType = parseInt(params[3].trim());
+              const riskLevel = parseInt(params[4].trim());
+
+              console.log('Parsed listProperty parameters:', {
+                metadataURI,
+                totalValue,
+                totalTokens,
+                propertyType,
+                riskLevel
+              });
+
+              functionParameters.addString(metadataURI);
+              functionParameters.addUint256(totalValue as any);
+              functionParameters.addUint256(totalTokens as any);
+              functionParameters.addUint8(propertyType);
+              functionParameters.addUint8(riskLevel);
+            } else {
+              console.error('listProperty: Invalid parameter count. Expected 5, got:', params.length);
+            }
+          }
 
           contractExecuteTransaction = new ContractExecuteTransaction()
             .setContractId(ContractId.fromString(contractId))
-            .setGas(300000 as any)
+            .setGas(500000 as any)
             .setFunction(functionName, functionParameters);
         } else {
           contractExecuteTransaction = new ContractExecuteTransaction()
             .setContractId(ContractId.fromString(contractId))
-            .setGas(300000 as any)
+            .setGas(500000 as any)
             .setFunction(functionName);
         }
       } else {
         contractExecuteTransaction = new ContractExecuteTransaction()
           .setContractId(ContractId.fromString(contractId))
-          .setGas(300000)
+          .setGas(500000)
           .setFunction(functionData);
       }
 
@@ -179,6 +216,16 @@ export class HashPackService {
 
       return transactionId;
     } catch (error: any) {
+      console.error('HashPack transaction error:', error);
+      console.error('HashPack error details:', {
+        message: error.message,
+        code: error.code,
+        reason: error.reason,
+        data: error.data,
+        status: error.status,
+        transactionId: error.transactionId,
+        fullError: JSON.stringify(error, null, 2)
+      });
       throw new Error(`HashPack transaction failed: ${error.message || error}`);
     }
   }

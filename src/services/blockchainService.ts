@@ -21,7 +21,6 @@ export class BlockchainService {
     if (!this.provider) throw new Error('Provider not connected');
 
 
-    // Check if contract address is configured
     if (!this.networkConfig.contracts.propertyToken) {
       throw new Error('Property token contract not configured');
     }
@@ -34,58 +33,92 @@ export class BlockchainService {
 
     try {
       const stats = await contract.getPlatformStats();
-      const totalProperties = Number(stats.totalProperties);
+      const totalProperties = Number(stats[0]);
 
-      const properties: Property[] = [];
-
-      // If no properties found in contract, return empty array
       if (totalProperties === 0) {
         return [];
       }
 
-    for (let i = 0; i < totalProperties; i++) {
+
+    const properties: Property[] = [];
+    let consecutiveFailures = 0;
+    const maxConsecutiveFailures = 5;
+
+    console.log(`Loading ${totalProperties} properties from contract...`);
+    for (let i = 0; i < Math.max(totalProperties, 100); i++) {
       try {
-        const propertyData = await contract.getProperty(i);
+        let propertyData;
+
+        try {
+          propertyData = await contract.getProperty(i);
+        } catch (abiError) {
+          const rawCall = await this.provider.call({
+            to: this.networkConfig.contracts.propertyToken,
+            data: contract.interface.encodeFunctionData('getProperty', [i])
+          });
+
+          const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
+            ['tuple(uint256,string,uint256,uint256,uint256,uint256,address,bool,bool,uint256,uint8,uint8)'],
+            rawCall
+          );
+          propertyData = decoded[0];
+        }
+
+        consecutiveFailures = 0;
+
+        const propertyImages = [
+          'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800',
+          'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800',
+          'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800',
+          'https://images.unsplash.com/photo-1605146769289-440113cc3d00?w=800',
+          'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=800',
+          'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800',
+          'https://images.unsplash.com/photo-1516156008625-3a99312bc7fd?w=800',
+          'https://images.unsplash.com/photo-1588880331179-bc9b93a8cb5e?w=800',
+          'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800',
+          'https://images.unsplash.com/photo-1565182999561-18d7dc61c393?w=800',
+          'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800',
+          'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800'
+        ];
 
         let metadata = {
           title: `Property ${i}`,
           description: 'Real estate property on Hedera blockchain',
           location: 'Unknown Location',
-          images: [`https://images.unsplash.com/photo-${1545324418 + i}-cc1a3fa10c00?w=800`]
+          images: [propertyImages[i % propertyImages.length]]
         };
 
-        if (propertyData.metadataURI) {
-          try {
-            const response = await fetch(propertyData.metadataURI);
-            const ipfsData = await response.json();
-            metadata = { ...metadata, ...ipfsData };
-          } catch {}
-        }
 
         const property: Property = {
           id: i,
           title: metadata.title,
           description: metadata.description,
           location: metadata.location,
-          totalValue: Number(ethers.formatEther(propertyData.totalValue)),
-          tokenPrice: Number(ethers.formatEther(propertyData.tokenPrice)),
-          totalTokens: Number(propertyData.totalTokens),
-          availableTokens: Number(propertyData.availableTokens),
+          totalValue: Number(ethers.formatEther(propertyData[2])),
+          tokenPrice: Number(ethers.formatEther(propertyData[5])),
+          totalTokens: Number(propertyData[3]),
+          availableTokens: Number(propertyData[4]),
           images: metadata.images || [],
-          propertyType: this.getPropertyTypeName(Number(propertyData.propertyType)),
-          riskLevel: this.getRiskLevelName(Number(propertyData.riskLevel)),
-          isActive: propertyData.isActive,
-          isVerified: propertyData.isVerified,
-          rentalYield: this.calculateRentalYield(Number(ethers.formatEther(propertyData.totalValue))),
-          propertyOwner: propertyData.propertyOwner,
-          createdAt: Number(propertyData.createdAt) * 1000,
-          tags: ['On-Chain', propertyData.isVerified ? 'Verified' : 'Unverified']
+          propertyType: this.getPropertyTypeName(Number(propertyData[10])),
+          riskLevel: this.getRiskLevelName(Number(propertyData[11])),
+          isActive: true,
+          isVerified: propertyData[8],
+          rentalYield: this.calculateRentalYield(Number(ethers.formatEther(propertyData[2]))),
+          propertyOwner: propertyData[6],
+          createdAt: Number(propertyData[9]) * 1000,
+          tags: ['On-Chain', propertyData[8] ? 'Verified' : 'Unverified']
         };
 
         if (property.isActive) {
           properties.push(property);
         }
-      } catch {
+
+      } catch (error) {
+        consecutiveFailures++;
+
+        if (consecutiveFailures >= maxConsecutiveFailures) {
+          break;
+        }
         continue;
       }
     }
@@ -107,41 +140,63 @@ export class BlockchainService {
     );
 
     try {
-      const propertyData = await contract.getProperty(propertyId);
+      let propertyData;
+
+      try {
+        propertyData = await contract.getProperty(propertyId);
+      } catch (abiError) {
+        const rawCall = await this.provider.call({
+          to: this.networkConfig.contracts.propertyToken,
+          data: contract.interface.encodeFunctionData('getProperty', [propertyId])
+        });
+
+        const decoded = ethers.AbiCoder.defaultAbiCoder().decode(
+          ['tuple(uint256,string,uint256,uint256,uint256,uint256,address,bool,bool,uint256,uint8,uint8)'],
+          rawCall
+        );
+        propertyData = decoded[0];
+      }
+
+      const propertyImages = [
+        'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=800',
+        'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800',
+        'https://images.unsplash.com/photo-1570129477492-45c003edd2be?w=800',
+        'https://images.unsplash.com/photo-1605146769289-440113cc3d00?w=800',
+        'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=800',
+        'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800',
+        'https://images.unsplash.com/photo-1516156008625-3a99312bc7fd?w=800',
+        'https://images.unsplash.com/photo-1588880331179-bc9b93a8cb5e?w=800',
+        'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800',
+        'https://images.unsplash.com/photo-1565182999561-18d7dc61c393?w=800',
+        'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800',
+        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800'
+      ];
 
       let metadata = {
         title: `Property ${propertyId}`,
         description: 'Real estate property on Hedera blockchain',
         location: 'Unknown Location',
-        images: [`https://images.unsplash.com/photo-${1545324418 + propertyId}-cc1a3fa10c00?w=800`]
+        images: [propertyImages[propertyId % propertyImages.length]]
       };
-
-      if (propertyData.metadataURI) {
-        try {
-          const response = await fetch(propertyData.metadataURI);
-          const ipfsData = await response.json();
-          metadata = { ...metadata, ...ipfsData };
-        } catch {}
-      }
 
       return {
         id: propertyId,
         title: metadata.title,
         description: metadata.description,
         location: metadata.location,
-        totalValue: Number(ethers.formatEther(propertyData.totalValue)),
-        tokenPrice: Number(ethers.formatEther(propertyData.tokenPrice)),
-        totalTokens: Number(propertyData.totalTokens),
-        availableTokens: Number(propertyData.availableTokens),
+        totalValue: Number(ethers.formatEther(propertyData[2])),
+        tokenPrice: Number(ethers.formatEther(propertyData[5])),
+        totalTokens: Number(propertyData[3]),
+        availableTokens: Number(propertyData[4]),
         images: metadata.images || [],
-        propertyType: this.getPropertyTypeName(Number(propertyData.propertyType)),
-        riskLevel: this.getRiskLevelName(Number(propertyData.riskLevel)),
-        isActive: propertyData.isActive,
-        isVerified: propertyData.isVerified,
-        rentalYield: this.calculateRentalYield(Number(ethers.formatEther(propertyData.totalValue))),
-        propertyOwner: propertyData.propertyOwner,
-        createdAt: Number(propertyData.createdAt) * 1000,
-        tags: ['On-Chain', propertyData.isVerified ? 'Verified' : 'Unverified']
+        propertyType: this.getPropertyTypeName(Number(propertyData[10])),
+        riskLevel: this.getRiskLevelName(Number(propertyData[11])),
+        isActive: true,
+        isVerified: propertyData[8],
+        rentalYield: this.calculateRentalYield(Number(ethers.formatEther(propertyData[2]))),
+        propertyOwner: propertyData[6],
+        createdAt: Number(propertyData[9]) * 1000,
+        tags: ['On-Chain', propertyData[8] ? 'Verified' : 'Unverified']
       };
     } catch {
       return null;
@@ -151,7 +206,6 @@ export class BlockchainService {
   async purchaseTokens(propertyId: number, tokenAmount: number): Promise<string> {
     if (!this.signer) throw new Error('Signer not available');
 
-    // First, get property details to calculate payment
     const property = await this.getProperty(propertyId);
     if (!property) {
       throw new Error('Property not found');
@@ -160,7 +214,6 @@ export class BlockchainService {
     const totalCost = property.tokenPrice * tokenAmount;
     const userAddress = await this.signer.getAddress();
 
-    // Check HRM token balance
     const hrmContract = new ethers.Contract(
       this.networkConfig.contracts.hrmToken,
       CONTRACT_ABIS.HRMToken,
@@ -174,7 +227,6 @@ export class BlockchainService {
       throw new Error(`Insufficient HRM balance. Need ${totalCost} HRM, have ${balanceFormatted.toLocaleString()} HRM`);
     }
 
-    // Approve HRM spending for property contract
     const propertyContract = new ethers.Contract(
       this.networkConfig.contracts.propertyToken,
       CONTRACT_ABIS.PropertyToken,
@@ -187,7 +239,6 @@ export class BlockchainService {
     );
     await approveTx.wait();
 
-    // Now purchase the tokens
     const purchaseTx = await propertyContract.purchaseTokens(propertyId, tokenAmount);
     await purchaseTx.wait();
 
@@ -241,11 +292,65 @@ export class BlockchainService {
           (property as any).tokensOwned = Number(investment.tokensOwned);
           (property as any).investmentAmount = Number(ethers.formatEther(investment.investmentAmount));
           (property as any).purchaseDate = Number(investment.purchaseDate) * 1000;
+          (property as any).isOwned = false; // This is an investment, not owned
           properties.push(property);
         }
       }
 
       return properties;
+    } catch {
+      return [];
+    }
+  }
+
+  async getOwnedProperties(ownerAddress: string): Promise<Property[]> {
+    if (!this.provider) throw new Error('Provider not connected');
+
+    console.log('Getting owned properties for address:', ownerAddress);
+    const allProperties = await this.getAllProperties();
+    const ownedProperties: Property[] = [];
+
+    console.log(`Checking ${allProperties.length} properties for ownership...`);
+
+    for (const property of allProperties) {
+      console.log(`Property ${property.id}:`, {
+        propertyOwner: property.propertyOwner,
+        userAddress: ownerAddress,
+        match: property.propertyOwner?.toLowerCase() === ownerAddress.toLowerCase()
+      });
+
+      if (property.propertyOwner?.toLowerCase() === ownerAddress.toLowerCase()) {
+        console.log(`✅ Found owned property: ${property.title} (ID: ${property.id})`);
+        (property as any).tokensOwned = property.totalTokens; // Owner has all tokens initially
+        (property as any).investmentAmount = 0; // No investment, they own it
+        (property as any).purchaseDate = property.createdAt || Date.now();
+        (property as any).isOwned = true; // This is owned, not an investment
+        ownedProperties.push(property);
+      }
+    }
+
+    console.log(`Found ${ownedProperties.length} owned properties`);
+    return ownedProperties;
+  }
+
+  async getCompletePortfolio(userAddress: string): Promise<Property[]> {
+    try {
+      const [investments, ownedProperties] = await Promise.all([
+        this.getInvestorPortfolio(userAddress),
+        this.getOwnedProperties(userAddress)
+      ]);
+
+      // Combine both arrays, avoiding duplicates (in case someone owns and invests in same property)
+      const allProperties = [...ownedProperties];
+
+      for (const investment of investments) {
+        const exists = allProperties.find(p => p.id === investment.id);
+        if (!exists) {
+          allProperties.push(investment);
+        }
+      }
+
+      return allProperties;
     } catch {
       return [];
     }

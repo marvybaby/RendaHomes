@@ -41,12 +41,16 @@ const PortfolioPage: React.FC = () => {
 
       const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
       const blockchainService = new BlockchainService(provider);
-      const portfolioProperties = await blockchainService.getInvestorPortfolio(wallet.address);
+      const portfolioProperties = await blockchainService.getCompletePortfolio(wallet.address);
 
       setPortfolio(portfolioProperties as PortfolioProperty[]);
 
       if (portfolioProperties.length === 0) {
-        info('Portfolio Empty', 'No investments found. Start investing in properties to build your portfolio!');
+        info('Portfolio Empty', 'No properties owned or invested in. Start by listing properties or investing in existing ones!');
+      } else {
+        const ownedCount = portfolioProperties.filter((p: any) => p.isOwned).length;
+        const investedCount = portfolioProperties.length - ownedCount;
+        console.log(`Portfolio loaded: ${ownedCount} owned, ${investedCount} invested`);
       }
     } catch (error) {
       error('Portfolio Load Failed', 'Failed to load portfolio from blockchain. Please check your connection.');
@@ -55,6 +59,9 @@ const PortfolioPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const ownedProperties = portfolio.filter((item: any) => item.isOwned);
+  const investedProperties = portfolio.filter((item: any) => !item.isOwned);
 
   const totalInvestment = portfolio.reduce((sum, item) => sum + item.investmentAmount, 0);
   const currentValue = portfolio.reduce((sum, item) => sum + (item.tokensOwned * item.tokenPrice), 0);
@@ -105,7 +112,10 @@ const PortfolioPage: React.FC = () => {
               <div className="text-3xl font-bold text-blue-500 mb-2">
                 {portfolio.length}
               </div>
-              <div className="text-gray-400">Properties Owned</div>
+              <div className="text-gray-400">Total Properties</div>
+              <div className="text-xs text-gray-500 mt-1">
+                {ownedProperties.length} owned, {investedProperties.length} invested
+              </div>
             </div>
             <div className="text-center">
               <div className="text-3xl font-bold text-green-500 mb-2">
@@ -200,7 +210,18 @@ const PortfolioPage: React.FC = () => {
                     <div className="flex-grow">
                       <div className="flex justify-between items-start mb-4">
                         <div>
-                          <h3 className="text-2xl font-semibold mb-2">{item.title}</h3>
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-2xl font-semibold">{item.title}</h3>
+                            {(item as any).isOwned ? (
+                              <span className="bg-green-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                                OWNED
+                              </span>
+                            ) : (
+                              <span className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-semibold">
+                                INVESTED
+                              </span>
+                            )}
+                          </div>
                           <p className="text-gray-400 mb-2">📍 {item.location}</p>
                           <div className="flex items-center space-x-4 text-sm text-gray-300">
                             <span>🏠 {item.propertyType}</span>

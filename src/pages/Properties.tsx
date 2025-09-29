@@ -13,35 +13,80 @@ const PropertiesPage: React.FC = () => {
   const [selectedRisk, setSelectedRisk] = useState<string>('all');
   const [priceRange, setPriceRange] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('price-low');
+  const [loadAttempts, setLoadAttempts] = useState(0);
   const { wallet, isConnected } = useWallet();
-  const { warning, error, info } = useAlertContext();
+  const { warning, error, info, success } = useAlertContext();
 
+  // Initial load
   useEffect(() => {
+    console.log('Initial useEffect triggered');
     loadProperties();
-  }, [wallet, isConnected]);
+  }, []); // Run once on mount
+
+  // Reload when wallet changes
+  useEffect(() => {
+    console.log('Wallet change detected, isConnected:', wallet.isConnected, 'address:', wallet.address);
+    if (wallet.isConnected && wallet.address) {
+      setLoadAttempts(0); // Reset attempts when wallet changes
+      loadProperties();
+    }
+  }, [wallet.isConnected, wallet.address]);
 
   const loadProperties = async () => {
+    console.log('loadProperties called, loadAttempts:', loadAttempts);
+
+    if (loadAttempts >= 3) {
+      console.error('Max attempts reached');
+      error('Max Attempts', 'Maximum loading attempts reached. Please refresh the page.');
+      return;
+    }
+
     try {
+      console.log('Starting property load...');
       setLoading(true);
+      setLoadAttempts(prev => prev + 1);
 
       // Create a provider for reading data from blockchain
       const { ethers } = await import('ethers');
       const { getCurrentNetworkConfig } = await import('@/config/contracts');
       const networkConfig = getCurrentNetworkConfig();
 
+      console.log('Network config:', networkConfig);
+
+      // Check if contract address is configured
+      if (!networkConfig.contracts.propertyToken) {
+        console.error('No property token contract configured');
+        error('Configuration Error', 'Property token contract address not configured. Please check your environment variables.');
+        return;
+      }
+
+      console.log('Creating provider and blockchain service...');
       const provider = new ethers.JsonRpcProvider(networkConfig.rpcUrl);
       const blockchainService = new BlockchainService(provider);
+
+      console.log('Calling getAllProperties...');
       const contractProperties = await blockchainService.getAllProperties();
+      console.log('Got properties:', contractProperties);
 
       setProperties(contractProperties);
 
       if (contractProperties.length === 0) {
-        info('No Properties', 'No properties found in smart contract. Properties need to be listed first.');
+        console.log('No properties found');
+        info('No Properties', 'No properties found in smart contract. You can list properties using the "List Property" page.');
+      } else {
+        console.log(`Loaded ${contractProperties.length} properties`);
+        success('Loaded', `Successfully loaded ${contractProperties.length} properties from the blockchain.`);
       }
     } catch (err: any) {
-      error('Loading Failed', 'Failed to load properties from blockchain. Please check your connection.');
+      console.error('Error loading properties:', err);
+      if (loadAttempts < 2) {
+        warning('Retry', `Attempt ${loadAttempts} failed. Retrying... Error: ${err.message}`);
+      } else {
+        error('Loading Failed', `Failed to load properties from blockchain: ${err.message || err}. Please check your internet connection.`);
+      }
       setProperties([]);
     } finally {
+      console.log('Setting loading to false');
       setLoading(false);
     }
   };
@@ -196,9 +241,26 @@ const PropertiesPage: React.FC = () => {
         {/* Properties Grid */}
         {loading ? (
           <div className="text-center py-12">
-            <div className="text-6xl mb-4">⏳</div>
-            <h3 className="text-2xl font-semibold mb-2">Loading Properties</h3>
-            <p className="text-gray-400">Fetching data from smart contracts...</p>
+            <div className="relative">
+              <div
+                className="text-6xl mb-4 inline-block animate-spin"
+                style={{
+                  animation: 'spin 2s linear infinite'
+                }}
+              >
+                ⏳
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-20 h-20 border-4 border-red-500/20 border-t-red-500 rounded-full animate-spin"></div>
+              </div>
+            </div>
+            <h3 className="text-2xl font-semibold mb-2 animate-pulse">Loading Properties</h3>
+            <p className="text-gray-400 animate-pulse">Fetching data from smart contracts...</p>
+            <div className="flex justify-center mt-4 space-x-1">
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+              <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+            </div>
           </div>
         ) : filteredAndSortedProperties.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

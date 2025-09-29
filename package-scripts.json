@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "populate": "node scripts/populate-realistic-properties.js"
+  }
+}
