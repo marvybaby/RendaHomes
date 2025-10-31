@@ -222,6 +222,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - OpenZeppelin for secure smart contract libraries
 - The DeFi community for inspiration and best practices
 
----
+CERTIFICATION : https://drive.google.com/file/d/1ZZiFOM0l5o_doU7btG76R4GrkLzz2d3-/view?usp=sharing
+PITCH DECK : https://drive.google.com/file/d/1XdRrYVeC6qgQxMVi9nLutktoMNlYOlA7/view?usp=sharing
 
 **⚠️ Disclaimer**: This is a demonstration platform. Real estate investments carry risks. Always conduct due diligence and consult financial advisors before investing.
